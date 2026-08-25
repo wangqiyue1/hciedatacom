@@ -1,0 +1,17 @@
+{
+  "name": "极速刷题 - 智能答题助手",
+  "short_name": "极速刷题",
+  "description": "专为iPhone与移动设备打造的智能刷题APP，支持Word/文本导入、选项乱序、答对自动跳转、错题集与模拟考试",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}
