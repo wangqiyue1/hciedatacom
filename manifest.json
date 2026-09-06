@@ -1,0 +1,16 @@
+{
+  "name": "答题练习 - 智能刷题系统",
+  "short_name": "答题练习",
+  "description": "轻量流畅的在线答题系统，支持单选题、多选题、考试拖拽滑块匹配题，本地私密存储，离线可用。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2F3F8",
+  "theme_color": "#4A6CF7",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
