@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HCIE拖拽题练习">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#3B82F6">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.json">
+<title>HCIE 拖拽滑块答题练习</title>
+<script src="hcie_drag_bank.js"></script>
+<style>
+:root{
+  --bg:#F4F6F9; --card:#FFFFFF; --text:#1F2937; --sub:#6B7280;
+  --line:#D1D5DB; --primary:#2563EB; --primary-grad:linear-gradient(135deg,#3B82F6 0%,#1D4ED8 100%);
+  --green:#10B981; --red:#EF4444;
+  /* 考场样式配色 */
+  --exam-border:#4B5563;
+  --chip-bg:#E8F4FD;
+  --chip-text:#1E3A8A;
+  --slot-bg:#EBEBEB;
+  --target-bg:#FFFFFF;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111827; --card:#1F2937; --text:#F9FAFB; --sub:#9CA3AF;
+    --line:#374151; --primary:#3B82F6;
+    --exam-border:#6B7280;
+    --chip-bg:#1E293B;
+    --chip-text:#93C5FD;
+    --slot-bg:#374151;
+    --target-bg:#1F2937;
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--text);touch-action:manipulation;
+  -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;
+}
+#app{max-width:760px;margin:0 auto;min-height:100%;
+  padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 30px)}
+.view{display:none}
+.view.active{display:block;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+
+/* ---------- 通用按钮 ---------- */
+.btn{display:block;width:100%;border:none;border-radius:10px;font-size:16px;font-weight:600;
+  padding:14px;cursor:pointer;font-family:inherit;transition:transform .12s,opacity .15s;
+  -webkit-user-select:none;user-select:none}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--primary-grad);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.28)}
+.btn-sub{background:var(--card);color:var(--text);border:1px solid var(--line)}
+.btn-ghost{background:transparent;color:var(--primary)}
+.btn-ghost.danger{color:var(--red)}
+.btn-big{margin-top:10px}
+.btn.disabled{opacity:.4;pointer-events:none}
+.icon-btn{width:36px;height:36px;flex:0 0 36px;border:none;border-radius:50%;background:var(--card);
+  color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);font-family:inherit}
+.row-actions{display:flex;gap:10px;margin-top:12px}
+.row-actions .btn{flex:1;background:var(--card);border:1px solid var(--line)}
+.foot-note{text-align:center;color:var(--sub);font-size:12px;margin-top:20px}
+
+/* ---------- 首页 ---------- */
+.hero{background:var(--primary-grad);border-radius:18px;padding:24px 20px;color:#fff;
+  box-shadow:0 8px 24px rgba(37,99,235,.25);margin-bottom:14px}
+.hero-icon{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:12px}
+.hero h1{font-size:22px;font-weight:700;letter-spacing:.3px}
+.hero-sub{font-size:13.5px;opacity:.92;margin-top:5px}
+.stat-row{display:flex;gap:10px;margin-bottom:14px}
+.stat-card{flex:1;background:var(--card);border-radius:14px;padding:15px;text-align:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.stat-num{font-size:26px;font-weight:700;color:var(--primary)}
+.stat-label{font-size:13px;color:var(--sub);margin-top:4px}
+.card{background:var(--card);border-radius:14px;padding:15px 18px;margin-top:12px;box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.switch-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;
+  font-size:15px;cursor:pointer;border-bottom:.5px solid var(--line)}
+.switch-row:last-child{border-bottom:none}
+.switch-row input{display:none}
+.switch{width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;
+  transition:background .2s;flex:0 0 auto}
+.switch::after{content:"";position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;
+  top:2px;left:2px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.switch-row input:checked + .switch{background:var(--green)}
+.switch-row input:checked + .switch::after{left:20px}
+
+/* ---------- 练习页考场风格 ---------- */
+.p-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.p-progress{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.p-progress-bar{height:100%;width:0;background:var(--primary-grad);border-radius:99px;transition:width .25s}
+.p-count{font-size:13px;color:var(--sub);flex:0 0 auto;min-width:44px;text-align:right}
+
+/* 考试题目标题区（1:1仿考题图片） */
+.exam-q-box{background:var(--card);border-radius:12px;padding:16px 18px;margin-bottom:16px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04);line-height:1.6}
+.exam-badge{display:inline-block;background:#3B82F6;color:#fff;font-size:12px;font-weight:700;
+  padding:2px 8px;border-radius:4px;margin-right:6px;vertical-align:baseline}
+.exam-q-num{font-weight:700;font-size:15.5px;color:var(--text);margin-right:4px}
+.exam-q-title{font-size:15.5px;font-weight:600;color:var(--text);word-break:break-word}
+
+/* 考场三栏对照容器 */
+.exam-board-wrapper{overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;margin-bottom:16px}
+.exam-board{display:flex;gap:12px;min-width:540px;background:var(--card);padding:18px;border-radius:12px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.exam-col{display:flex;flex-direction:column;gap:12px}
+.exam-col-sources{flex:1.1}
+.exam-col-slots{flex:1.1}
+.exam-col-targets{flex:1.8}
+
+/* 考场风格矩形方块（统一严格对齐，细黑实线边框，微圆角2px） */
+.exam-rect{
+  height:54px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 10px;
+  border:1.5px solid var(--exam-border);
+  border-radius:2px;
+  font-size:14.5px;
+  line-height:1.35;
+  text-align:center;
+  user-select:none;-webkit-user-select:none;
+  position:relative;
+  transition:all .15s;
+}
+
+/* 左列：浅蓝滑块 */
+.exam-chip{
+  background:var(--chip-bg);
+  color:var(--chip-text);
+  font-weight:600;
+  cursor:grab;
+}
+.exam-chip:active{cursor:grabbing}
+.exam-chip.selected{
+  border-color:#2563EB;
+  box-shadow:0 0 0 2.5px rgba(37,99,235,0.45);
+  transform:scale(1.02);
+}
+.exam-chip.placed{
+  background:var(--bg);
+  border-style:dashed;
+  border-color:var(--line);
+  color:var(--sub);
+  opacity:.4;
+  cursor:default;
+  pointer-events:none;
+}
+.exam-chip.dragging{opacity:.35}
+
+/* 中间列：灰色槽位（未放置为纯净灰框，放入后填满浅蓝并带撤回按键） */
+.exam-slot{
+  background:var(--slot-bg);
+  color:var(--sub);
+  cursor:pointer;
+}
+.exam-slot.hover{
+  background:#DBEAFE;
+  border-color:#2563EB;
+}
+.exam-slot.filled{
+  background:var(--chip-bg);
+  color:var(--chip-text);
+  font-weight:600;
+  justify-content:space-between;
+  padding:6px 8px 6px 12px;
+}
+.exam-slot-text{flex:1;text-align:center;word-break:break-word}
+.exam-slot-del{
+  width:18px;height:18px;border-radius:50%;border:none;background:rgba(0,0,0,.15);
+  color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex:0 0 18px;line-height:1;margin-left:4px;
+}
+.exam-slot-del:hover{background:#EF4444}
+
+/* 评判对错标识 */
+.exam-slot.correct{
+  border-color:#10B981!important;
+  background:#ECFDF5!important;
+  color:#065F46!important;
+}
+.exam-slot.wrong{
+  border-color:#EF4444!important;
+  background:#FEF2F2!important;
+  color:#991B1B!important;
+  animation:shake .3s;
+}
+.exam-badge-res{font-size:15px;font-weight:800;margin-left:4px}
+.exam-badge-res.ok{color:#10B981}
+.exam-badge-res.fail{color:#EF4444}
+.exam-slot-ans-hint{
+  position:absolute;bottom:-17px;left:0;right:0;font-size:11px;color:#EF4444;font-weight:700;
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* 右列：目标描述框（白底黑框） */
+.exam-target{
+  background:var(--target-bg);
+  color:var(--text);
+  font-weight:500;
+}
+
+/* 顶部小操作条 */
+.exam-bar-tools{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.exam-bar-tip{font-size:12.5px;color:var(--sub)}
+.exam-reset-btn{border:none;background:var(--card);color:var(--text);padding:4px 10px;
+  border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;border:1px solid var(--line)}
+
+/* 浮动触摸跟随球 */
+.drag-touch-ghost{position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);
+  background:#2563EB;color:#fff;padding:8px 14px;border-radius:4px;font-size:14px;
+  font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:.95}
+
+/* ---------- 解析卡片 ---------- */
+.explain{margin-top:14px;margin-bottom:14px;background:var(--card);border-radius:12px;
+  padding:14px 16px;border-left:4px solid var(--red);animation:fadeUp .2s}
+.explain.ok{border-left-color:var(--green)}
+.explain-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.explain-body{font-size:14.5px;line-height:1.65;color:var(--sub);white-space:pre-wrap;word-break:break-word}
+
+/* ---------- 结果页 ---------- */
+.result-card{background:var(--card);border-radius:18px;padding:36px 20px;text-align:center;
+  margin-top:30px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+.result-emoji{font-size:52px;margin-bottom:10px}
+.result-acc{font-size:44px;font-weight:800;background:var(--primary-grad);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.result-desc{color:var(--sub);font-size:14.5px;margin:8px 0 24px}
+
+/* ---------- 导入页 ---------- */
+.seg{display:flex;background:var(--line);border-radius:10px;padding:3px;margin-bottom:14px}
+.seg-btn{flex:1;border:none;background:transparent;padding:8px;border-radius:8px;font-size:13.5px;
+  font-weight:600;color:var(--sub);font-family:inherit;cursor:pointer}
+.seg-btn.active{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.tab{display:none}
+.tab.active{display:block}
+.file-drop{display:block;background:var(--card);border:2px dashed var(--line);border-radius:14px;
+  padding:30px 16px;text-align:center;font-size:14.5px;color:var(--text);cursor:pointer;line-height:1.6}
+.file-drop input{display:none}
+.file-drop-icon{font-size:32px;margin-bottom:8px}
+.file-drop-sub{font-size:12px;color:var(--sub);margin-top:4px}
+#paste-area{width:100%;height:180px;border:1.5px solid var(--line);border-radius:12px;
+  background:var(--card);color:var(--text);padding:12px;font-size:15px;line-height:1.6;
+  font-family:inherit;resize:none;outline:none}
+.help-block{margin-bottom:14px}
+.help-block h3{font-size:14.5px;margin-bottom:6px}
+.help-block p{font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:6px}
+.help-block pre{background:var(--card);border-radius:10px;padding:10px 12px;font-size:12px;
+  line-height:1.5;white-space:pre-wrap;color:var(--text);border:1px solid var(--line)}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 30px);
+  transform:translateX(-50%) translateY(20px);background:rgba(17,24,39,.94);color:#fff;
+  padding:10px 18px;border-radius:99px;font-size:13.5px;opacity:0;pointer-events:none;
+  transition:all .2s;max-width:85%;text-align:center;z-index:99}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= 首页 ================= -->
+  <section id="view-home" class="view active">
+    <div class="hero">
+      <div class="hero-icon">🧩</div>
+      <h1>HCIE 拖拽滑块答题系统</h1>
+      <p class="hero-sub">1:1 还原认证考场拖拽界面 · 54 道核心真题</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" id="stat-bank">54</div><div class="stat-label">题库题目</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-wrong">0</div><div class="stat-label">待巩固错题</div></div>
+    </div>
+    <button class="btn btn-primary" id="btn-start">开始练习</button>
+    <button class="btn btn-sub btn-big" id="btn-wrong-practice">错题专练</button>
+    
+    <div class="card">
+      <div class="card-title">练习设置</div>
+      <label class="switch-row"><span>滑块乱序排列</span><input type="checkbox" id="set-shuffle-opts"><i class="switch"></i></label>
+      <label class="switch-row"><span>答对自动进入下一题</span><input type="checkbox" id="set-auto-next"><i class="switch"></i></label>
+      <label class="switch-row"><span>题目乱序</span><input type="checkbox" id="set-shuffle-qs"><i class="switch"></i></label>
+    </div>
+    <div class="row-actions">
+      <button class="btn" id="btn-reload-hcie">重载54道真题</button>
+      <button class="btn" id="btn-import">导入题目</button>
+    </div>
+    <div class="row-actions">
+      <button class="btn btn-ghost" id="btn-export">导出题库备份</button>
+      <button class="btn btn-ghost danger" id="btn-clear">清空题库</button>
+    </div>
+    <p class="foot-note">题目数据与记录保存在本机浏览器中</p>
+  </section>
+
+  <!-- ================= 导入页 ================= -->
+  <section id="view-import" class="view">
+    <div class="p-top">
+      <button class="icon-btn" id="btn-import-back">←</button>
+      <div class="p-title" style="flex:1;text-align:center;font-weight:700">导入拖拽题目</div>
+      <span style="width:36px;flex:0 0 36px"></span>
+    </div>
+    <div class="seg">
+      <button class="seg-btn active" data-tab="file">文件导入</button>
+      <button class="seg-btn" data-tab="paste">粘贴文本</button>
+      <button class="seg-btn" data-tab="help">格式说明</button>
+    </div>
+    <div id="tab-file" class="tab active">
+      <label class="file-drop">
+        <input type="file" id="file-input" accept=".txt,.json,text/plain,application/json">
+        <div class="file-drop-icon">📄</div>
+        <div>点击选择 .json 或 .txt 题库文件</div>
+      </label>
+    </div>
+    <div id="tab-paste" class="tab">
+      <textarea id="paste-area" placeholder="粘贴连线题文本，格式见「格式说明」…"></textarea>
+      <button class="btn btn-primary btn-big" id="btn-parse-paste">解析并预览</button>
+    </div>
+    <div id="tab-help" class="tab">
+      <div class="help-block">
+        <h3>拖拽连线题格式</h3>
+        <pre>1.【拖拽题】请将HTTP状态码和原因短语进行匹配
+1XX → 请求被接收
+2XX → 请求成功
+3XX → 进一步操作需要被执行
+4XX → 请求错误
+5XX → 服务端错误
+解析：1XX信息类，2XX成功类...</pre>
+      </div>
+    </div>
+    <div id="preview" style="display:none;margin-top:14px">
+      <div class="card">
+        <div class="card-title" id="preview-title">解析到 0 道题</div>
+        <div id="preview-list" style="margin:10px 0"></div>
+        <div class="row-actions">
+          <button class="btn" id="btn-preview-cancel">取消</button>
+          <button class="btn" id="btn-preview-ok" style="background:var(--primary-grad);color:#fff;border:none">确认导入</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 练习页（考场布局） ================= -->
+  <section id="view-practice" class="view">
+    <div class="p-top">
+      <button class="icon-btn" id="btn-exit">✕</button>
+      <div class="p-progress"><div class="p-progress-bar" id="p-bar"></div></div>
+      <span class="p-count" id="p-count">0/0</span>
+    </div>
+
+    <!-- 顶部题目标题区（仿用户截图） -->
+    <div class="exam-q-box" id="q-card">
+      <span class="exam-badge">简答题</span>
+      <span class="exam-q-num" id="q-no">921/974、</span>
+      <span class="exam-q-title" id="q-text">HTTP状态码(HTTP Status Code)是服务器响应状态的3位数字码...</span>
+    </div>
+
+    <div class="exam-bar-tools">
+      <span class="exam-bar-tip">💡 拖动左侧滑块至中间框，或点击滑块后点击中间框</span>
+      <button type="button" class="exam-reset-btn" id="btn-drag-reset">全部归位</button>
+    </div>
+
+    <!-- 考场三栏网格（左滑块 / 中槽位 / 右描述） -->
+    <div class="exam-board-wrapper">
+      <div class="exam-board">
+        <!-- 左列：待拖拽滑块 -->
+        <div class="exam-col exam-col-sources" id="drag-sources"></div>
+
+        <!-- 中列：目标放置槽位 -->
+        <div class="exam-col exam-col-slots" id="drag-slots"></div>
+
+        <!-- 右列：目标描述 -->
+        <div class="exam-col exam-col-targets" id="drag-targets"></div>
+      </div>
+    </div>
+
+    <div class="explain" id="explain" style="display:none">
+      <div class="explain-title" id="explain-title"></div>
+      <div class="explain-body" id="explain-body"></div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-submit-drag">提交答案</button>
+    <button class="btn btn-primary" id="btn-next" style="display:none">下一题</button>
+  </section>
+
+  <!-- ================= 结果页 ================= -->
+  <section id="view-result" class="view">
+    <div class="result-card">
+      <div class="result-emoji" id="r-emoji">🎉</div>
+      <div class="result-acc" id="r-acc">100%</div>
+      <div class="result-desc" id="r-desc"></div>
+      <button class="btn btn-primary" id="btn-retry">再来一次</button>
+      <button class="btn btn-sub btn-big" id="btn-retry-wrong">只练错题</button>
+      <button class="btn btn-ghost btn-big" id="btn-home">返回首页</button>
+    </div>
+  </section>
+
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ================= 工具函数 ================= */
+const $ = s => document.querySelector(s);
+const store = {
+  load(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return (v === null || v === undefined) ? d : v; }catch(e){ return d; } },
+  save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function hashId(s){ let h = 5381; for(let i = 0; i < s.length; i++){ h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; } return h.toString(36); }
+function qid(q){
+  const pairs = Array.isArray(q.pairs) ? q.pairs.map(p => p.left + '::' + p.right).join('') : '';
+  return hashId('drag' + q.q + '' + pairs);
+}
+let toastTimer = null;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); }
+function showView(id){ document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); $('#' + id).classList.add('active'); window.scrollTo(0, 0); }
+
+/* ================= 题库初始化 ================= */
+const DEFAULT_DRAG_BANK = (window.HCIE_DRAG_BANK || []).map(q => Object.assign({ id: qid(q) }, q));
+
+let bank = store.load('quiz_bank_drag_v2', []);
+if(!bank || !bank.length){
+  bank = DEFAULT_DRAG_BANK.slice();
+  store.save('quiz_bank_drag_v2', bank);
+}
+
+let wrongIds = store.load('quiz_wrong_drag_v2', []);
+let settings = Object.assign({ shuffleOptions: true, autoNext: true, shuffleQuestions: false }, store.load('quiz_settings_drag_v2', {}));
+let session = null, nextTimer = null, pendingImport = null;
+let answered = false;
+
+let dragRun = {
+  selectedChip: null, // 当前点击选中的 chip ID
+  slots: {},          // targetIndex -> chipId
+  item: null
+};
+
+function addWrong(id){ if(!wrongIds.includes(id)){ wrongIds.push(id); store.save('quiz_wrong_drag_v2', wrongIds); } }
+function removeWrong(id){ const i = wrongIds.indexOf(id); if(i >= 0){ wrongIds.splice(i, 1); store.save('quiz_wrong_drag_v2', wrongIds); } }
+
+/* ================= 首页 ================= */
+function renderHome(){
+  $('#stat-bank').textContent = bank.length;
+  $('#stat-wrong').textContent = wrongIds.length;
+  $('#btn-start').classList.toggle('disabled', !bank.length);
+  $('#btn-wrong-practice').classList.toggle('disabled', !wrongIds.length);
+  $('#set-shuffle-opts').checked = settings.shuffleOptions;
+  $('#set-auto-next').checked = settings.autoNext;
+  $('#set-shuffle-qs').checked = settings.shuffleQuestions;
+}
+$('#set-shuffle-opts').addEventListener('change', e => { settings.shuffleOptions = e.target.checked; store.save('quiz_settings_drag_v2', settings); });
+$('#set-auto-next').addEventListener('change', e => { settings.autoNext = e.target.checked; store.save('quiz_settings_drag_v2', settings); });
+$('#set-shuffle-qs').addEventListener('change', e => { settings.shuffleQuestions = e.target.checked; store.save('quiz_settings_drag_v2', settings); });
+$('#btn-import').onclick = () => { $('#preview').style.display = 'none'; showView('view-import'); };
+$('#btn-import-back').onclick = () => showView('view-home');
+$('#btn-start').onclick = () => startSession('all');
+$('#btn-wrong-practice').onclick = () => startSession('wrong');
+
+$('#btn-reload-hcie').onclick = () => {
+  bank = DEFAULT_DRAG_BANK.slice();
+  wrongIds = [];
+  store.save('quiz_bank_drag_v2', bank);
+  store.save('quiz_wrong_drag_v2', wrongIds);
+  renderHome();
+  toast('已恢复 54 道 HCIE 拖拽真题');
+};
+
+$('#btn-clear').onclick = () => {
+  if(!bank.length){ toast('题库已经是空的'); return; }
+  if(confirm('确定清空题库吗？点击「重载54道真题」可随时恢复。')){
+    bank = []; wrongIds = [];
+    store.save('quiz_bank_drag_v2', bank); store.save('quiz_wrong_drag_v2', wrongIds);
+    renderHome(); toast('题库已清空');
+  }
+};
+
+/* ================= 练习 ================= */
+function toViewModel(q){
+  const chips = q.pairs.map((p, idx) => ({ id: 'c_' + idx, text: p.left }));
+  const targets = q.pairs.map((p, idx) => ({ id: idx, right: p.right, correctText: p.left }));
+  if(settings.shuffleOptions) shuffle(chips);
+  return { id: q.id, type: 'drag', q: q.q, explanation: q.explanation, chips, targets };
+}
+
+function startSession(mode){
+  const wrongSet = new Set(wrongIds);
+  const pool = mode === 'wrong' ? bank.filter(q => wrongSet.has(q.id)) : bank.slice();
+  if(!pool.length){ toast(mode === 'wrong' ? '还没有错题' : '题库是空的'); return; }
+  if(settings.shuffleQuestions) shuffle(pool);
+  session = { list: pool.map(toViewModel), index: 0, correct: 0, wrong: 0, mode, total: pool.length };
+  showView('view-practice');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  if(!session) return;
+  clearTimeout(nextTimer);
+  answered = false;
+  const item = session.list[session.index];
+
+  // 标题排版：921/974、 题干
+  const rawNumMatch = item.q.match(/\[(?:第)?(\d+)题\]/);
+  const realNumStr = rawNumMatch ? (rawNumMatch[1] + '/974、') : ((session.index + 1) + '/' + session.total + '、');
+  const cleanQText = item.q.replace(/\[(?:第)?\d+题\]\s*/, '');
+
+  $('#q-no').textContent = realNumStr;
+  $('#q-text').textContent = cleanQText;
+  $('#p-count').textContent = (session.index + 1) + '/' + session.total;
+  $('#p-bar').style.width = (session.index / session.total * 100) + '%';
+  $('#explain').style.display = 'none';
+  $('#btn-next').style.display = 'none';
+  $('#btn-submit-drag').style.display = 'block';
+
+  renderDragQuestion(item);
+}
+
+/* ================= 考场三栏拖拽核心 ================= */
+function renderDragQuestion(item){
+  dragRun = {
+    selectedChip: null,
+    slots: {},
+    item: item
+  };
+  updateDragUI();
+}
+
+function updateDragUI(){
+  if(!dragRun.item) return;
+  const { chips, targets } = dragRun.item;
+  const colSources = $('#drag-sources');
+  const colSlots = $('#drag-slots');
+  const colTargets = $('#drag-targets');
+
+  colSources.innerHTML = '';
+  colSlots.innerHTML = '';
+  colTargets.innerHTML = '';
+
+  const placedChipIds = new Set(Object.values(dragRun.slots));
+
+  // 1. 渲染左列滑块（浅蓝底，细黑边框）
+  chips.forEach(c => {
+    const chipEl = document.createElement('div');
+    const isPlaced = placedChipIds.has(c.id);
+    const isSelected = dragRun.selectedChip === c.id;
+
+    chipEl.className = 'exam-rect exam-chip' + (isPlaced ? ' placed' : '') + (isSelected ? ' selected' : '');
+    chipEl.dataset.chipId = c.id;
+    chipEl.draggable = !isPlaced && !answered;
+    chipEl.textContent = c.text;
+
+    // 原生拖拽
+    chipEl.addEventListener('dragstart', e => {
+      if(answered || isPlaced) return;
+      e.dataTransfer.setData('text/plain', c.id);
+      chipEl.classList.add('dragging');
+      dragRun.selectedChip = c.id;
+    });
+    chipEl.addEventListener('dragend', () => chipEl.classList.remove('dragging'));
+
+    // 触屏滑动
+    bindTouchDrag(chipEl, c.id);
+
+    // 点击选择
+    chipEl.addEventListener('click', () => {
+      if(answered || isPlaced) return;
+      dragRun.selectedChip = (dragRun.selectedChip === c.id) ? null : c.id;
+      updateDragUI();
+    });
+
+    colSources.appendChild(chipEl);
+  });
+
+  // 2. 渲染中列灰色槽位与右列描述（高度严格一致）
+  targets.forEach((t, tIdx) => {
+    // 中列槽位
+    const slotEl = document.createElement('div');
+    const filledChipId = dragRun.slots[tIdx];
+    const filledChip = filledChipId ? chips.find(c => c.id === filledChipId) : null;
+
+    slotEl.className = 'exam-rect exam-slot' + (filledChip ? ' filled' : '');
+    slotEl.dataset.targetIdx = tIdx;
+
+    if(filledChip){
+      const txt = document.createElement('span');
+      txt.className = 'exam-slot-text';
+      txt.textContent = filledChip.text;
+      slotEl.appendChild(txt);
+
+      if(!answered){
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'exam-slot-del';
+        delBtn.innerHTML = '✕';
+        delBtn.title = '移出槽位';
+        delBtn.onclick = ev => {
+          ev.stopPropagation();
+          delete dragRun.slots[tIdx];
+          updateDragUI();
+        };
+        slotEl.appendChild(delBtn);
+      }
+    }
+
+    // 拖拽放入
+    slotEl.ondragover = e => { e.preventDefault(); if(!answered) slotEl.classList.add('hover'); };
+    slotEl.ondragleave = () => slotEl.classList.remove('hover');
+    slotEl.ondrop = e => {
+      e.preventDefault();
+      slotEl.classList.remove('hover');
+      if(answered) return;
+      const cid = e.dataTransfer.getData('text/plain') || dragRun.selectedChip;
+      if(cid) placeChipIntoSlot(cid, tIdx);
+    };
+
+    // 点击放入
+    slotEl.onclick = () => {
+      if(answered) return;
+      if(dragRun.selectedChip){
+        placeChipIntoSlot(dragRun.selectedChip, tIdx);
+      }else if(dragRun.slots[tIdx]){
+        delete dragRun.slots[tIdx];
+        updateDragUI();
+      }
+    };
+
+    colSlots.appendChild(slotEl);
+
+    // 右列目标描述（白底黑框）
+    const targetEl = document.createElement('div');
+    targetEl.className = 'exam-rect exam-target';
+    targetEl.textContent = t.right;
+    colTargets.appendChild(targetEl);
+  });
+}
+
+function placeChipIntoSlot(chipId, targetIdx){
+  for(const k in dragRun.slots){
+    if(dragRun.slots[k] === chipId) delete dragRun.slots[k];
+  }
+  dragRun.slots[targetIdx] = chipId;
+  dragRun.selectedChip = null;
+  updateDragUI();
+}
+
+function bindTouchDrag(el, chipId){
+  let ghost = null;
+  el.addEventListener('touchstart', e => {
+    if(answered || el.classList.contains('placed')) return;
+    const touch = e.touches[0];
+    dragRun.selectedChip = chipId;
+    ghost = document.createElement('div');
+    ghost.className = 'drag-touch-ghost';
+    ghost.textContent = el.textContent;
+    ghost.style.left = touch.clientX + 'px';
+    ghost.style.top = touch.clientY + 'px';
+    document.body.appendChild(ghost);
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    if(!ghost) return;
+    const touch = e.touches[0];
+    ghost.style.left = touch.clientX + 'px';
+    ghost.style.top = touch.clientY + 'px';
+
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    const dropSlot = targetEl ? targetEl.closest('.exam-slot') : null;
+    document.querySelectorAll('.exam-slot').forEach(z => z.classList.remove('hover'));
+    if(dropSlot && !answered) dropSlot.classList.add('hover');
+  }, { passive: true });
+
+  el.addEventListener('touchend', e => {
+    if(!ghost) return;
+    ghost.remove(); ghost = null;
+    document.querySelectorAll('.exam-slot').forEach(z => z.classList.remove('hover'));
+
+    const touch = e.changedTouches[0];
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    const dropSlot = targetEl ? targetEl.closest('.exam-slot') : null;
+    if(dropSlot && !answered){
+      const tIdx = parseInt(dropSlot.dataset.targetIdx, 10);
+      if(!isNaN(tIdx)) placeChipIntoSlot(chipId, tIdx);
+    }
+  });
+}
+
+$('#btn-drag-reset').onclick = () => {
+  if(answered) return;
+  dragRun.slots = {};
+  dragRun.selectedChip = null;
+  updateDragUI();
+  toast('已全部归位');
+};
+
+$('#btn-submit-drag').onclick = () => {
+  if(answered || !session) return;
+  const item = session.list[session.index];
+  const { chips, targets } = item;
+
+  const filledCount = Object.keys(dragRun.slots).length;
+  if(filledCount < targets.length){
+    toast('还有 ' + (targets.length - filledCount) + ' 个槽位未放置滑块');
+    return;
+  }
+
+  answered = true;
+  $('#btn-submit-drag').style.display = 'none';
+
+  let allCorrect = true;
+  const slotElements = document.querySelectorAll('.exam-slot');
+
+  targets.forEach((t, tIdx) => {
+    const chipId = dragRun.slots[tIdx];
+    const chip = chips.find(c => c.id === chipId);
+    const userText = chip ? chip.text.trim() : '';
+    const isCorrect = (userText === t.correctText.trim());
+
+    const slotEl = slotElements[tIdx];
+    slotEl.classList.remove('hover');
+
+    const del = slotEl.querySelector('.exam-slot-del');
+    if(del) del.remove();
+
+    if(isCorrect){
+      slotEl.classList.add('correct');
+      const badge = document.createElement('span');
+      badge.className = 'exam-badge-res ok';
+      badge.textContent = '✔';
+      slotEl.appendChild(badge);
+    }else{
+      allCorrect = false;
+      slotEl.classList.add('wrong');
+      const badge = document.createElement('span');
+      badge.className = 'exam-badge-res fail';
+      badge.textContent = '✘';
+      slotEl.appendChild(badge);
+
+      const hint = document.createElement('div');
+      hint.className = 'exam-slot-ans-hint';
+      hint.textContent = '应填：' + t.correctText;
+      slotEl.appendChild(hint);
+    }
+  });
+
+  if(allCorrect){
+    session.correct++;
+    removeWrong(item.id);
+  }else{
+    session.wrong++;
+    addWrong(item.id);
+  }
+
+  const last = session.index >= session.list.length - 1;
+  if(allCorrect){
+    if(settings.autoNext && !last){
+      nextTimer = setTimeout(nextQuestion, 900);
+    }else{
+      showExplain(true, item, last);
+    }
+  }else{
+    showExplain(false, item, last);
+  }
+};
+
+function showExplain(ok, item, last){
+  const box = $('#explain');
+  box.style.display = 'block';
+  box.classList.toggle('ok', ok);
+  $('#explain-title').textContent = ok ? '✔ 全部匹配正确！' : '✘ 匹配有误，请核对各槽位标记';
+  $('#explain-body').textContent = item.explanation || (ok ? '继续加油，进入下一题！' : '本题暂无解析。');
+  const nb = $('#btn-next');
+  nb.textContent = last ? '查看结果' : '下一题';
+  nb.style.display = 'block';
+}
+
+$('#btn-next').onclick = nextQuestion;
+function nextQuestion(){
+  if(!session) return;
+  session.index++;
+  if(session.index >= session.list.length) showResult();
+  else renderQuestion();
+}
+function showResult(){
+  $('#p-bar').style.width = '100%';
+  const acc = Math.round(session.correct / session.total * 100);
+  $('#r-acc').textContent = acc + '%';
+  $('#r-desc').textContent = '共 ' + session.total + ' 题 · 答对 ' + session.correct + ' 题 · 答错 ' + session.wrong + ' 题';
+  $('#r-emoji').textContent = acc === 100 ? '🏆' : (acc >= 80 ? '🎉' : (acc >= 60 ? '💪' : '📖'));
+  $('#btn-retry-wrong').style.display = session.wrong > 0 ? 'block' : 'none';
+  showView('view-result');
+}
+$('#btn-retry').onclick = () => { const m = session ? session.mode : 'all'; startSession(m); };
+$('#btn-retry-wrong').onclick = () => startSession('wrong');
+$('#btn-home').onclick = () => { session = null; renderHome(); showView('view-home'); };
+$('#btn-exit').onclick = () => {
+  if(confirm('退出本次练习？')){ clearTimeout(nextTimer); session = null; renderHome(); showView('view-home'); }
+};
+
+/* ================= 导入导出 ================= */
+document.querySelectorAll('.seg-btn').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    $('#tab-' + b.dataset.tab).classList.add('active');
+  };
+});
+function parseQuestions(text){
+  const t = String(text).trim();
+  if(t.startsWith('[') || t.startsWith('{')){
+    try{
+      const data = JSON.parse(t);
+      const arr = Array.isArray(data) ? data : (data.questions || []);
+      const out = [];
+      for(const it of arr){
+        if(!it || !Array.isArray(it.pairs) || it.pairs.length < 2) continue;
+        out.push({ type: 'drag', q: it.q || '拖拽匹配题', pairs: it.pairs, explanation: it.explanation || '' });
+      }
+      if(out.length) return out;
+    }catch(e){}
+  }
+  const lines = t.split(/\r?\n/);
+  const out = [];
+  let cur = null;
+  const flush = () => { if(cur && cur.pairs.length >= 2) out.push(cur); cur = null; };
+  for(const line of lines){
+    const l = line.trim();
+    if(!l) continue;
+    const arrow = l.match(/^([^→\->=>]+?)\s*(?:→|->|=>)\s*(.+)$/);
+    if(arrow && cur){
+      cur.pairs.push({ left: arrow[1].trim(), right: arrow[2].trim() });
+      continue;
+    }
+    if(l.startsWith('解析：') || l.startsWith('解析:')){
+      if(cur) cur.explanation = l.replace(/^解析[：:]/, '').trim();
+      continue;
+    }
+    if(/^\d+[.、．]/.test(l)){
+      flush();
+      cur = { type: 'drag', q: l.replace(/^\d+[.、．]\s*/, ''), pairs: [], explanation: '' };
+    }
+  }
+  flush();
+  return out;
+}
+function showPreview(parsed){
+  if(!parsed.length){ toast('未解析到题目，请检查格式'); return; }
+  pendingImport = parsed;
+  $('#preview-title').textContent = '解析到 ' + parsed.length + ' 道题';
+  const list = $('#preview-list'); list.innerHTML = '';
+  parsed.slice(0, 3).forEach((q, i) => {
+    const d = document.createElement('div');
+    d.style.padding = '6px 0';
+    d.style.fontSize = '13.5px';
+    d.style.color = 'var(--sub)';
+    d.textContent = (i + 1) + '. [拖拽题] ' + (q.q.length > 30 ? q.q.slice(0, 30) + '…' : q.q);
+    list.appendChild(d);
+  });
+  $('#preview').style.display = 'block';
+}
+$('#file-input').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  const txt = await f.text();
+  showPreview(parseQuestions(txt));
+};
+$('#btn-parse-paste').onclick = () => {
+  const t = $('#paste-area').value;
+  if(!t.trim()){ toast('请先粘贴题目文本'); return; }
+  showPreview(parseQuestions(t));
+};
+$('#btn-preview-cancel').onclick = () => { pendingImport = null; $('#preview').style.display = 'none'; };
+$('#btn-preview-ok').onclick = () => {
+  if(!pendingImport) return;
+  const ids = new Set(bank.map(q => q.id));
+  let added = 0;
+  for(const q of pendingImport){
+    const id = qid(q);
+    if(!ids.has(id)){ ids.add(id); bank.push(Object.assign({ id }, q)); added++; }
+  }
+  store.save('quiz_bank_drag_v2', bank);
+  pendingImport = null; $('#preview').style.display = 'none';
+  renderHome(); showView('view-home');
+  toast('已导入 ' + added + ' 道题目');
+};
+$('#btn-export').onclick = () => {
+  if(!bank.length){ toast('题库是空的'); return; }
+  const blob = new Blob([JSON.stringify(bank, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'HCIE_拖拽题题库备份.json'; a.click();
+  toast('已导出题库备份');
+};
+
+/* ================= 初始化 ================= */
+renderHome();
+</script>
+</body>
+</html>
